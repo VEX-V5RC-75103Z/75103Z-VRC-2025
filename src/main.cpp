@@ -7,7 +7,7 @@
 //#include "liblvgl/llemu.hpp"
 #include "pros/abstract_motor.hpp"
 #include "pros/imu.hpp"
-#include "pros/llemu.hpp"
+//#include "pros/llemu.hpp"
 #include "pros/motors.hpp"
 #include "pros/rtos.hpp"
 #include "pros/ai_vision.h"
