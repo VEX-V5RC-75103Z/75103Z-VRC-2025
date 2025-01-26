@@ -23,10 +23,9 @@ bool autonSide;                         // T = close, F = far
 const int wheelCirc = 220;              // in mm
 const int driveEncoders = 300;          // ticks per revolution
 const double trackWidth = 10.8 * 25.4;  // conversion to mm
-int lbStates[3] = {0, 338, 217};        // list of all the states
+int lbStates[3] = {0, 338, 217}; // list of all the states
 int lbState = 0;                        // current state it is in
-const int lbTotalStates =
-    sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
+const int lbTotalStates = sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
 
 pros::MotorGroup left({11, 12, 13}, pros::MotorGearset::blue);
 pros::MotorGroup right({18, 19, 20}, pros::MotorGearset::blue);
@@ -46,6 +45,8 @@ pros::adi::Pneumatics mogoRight('b', false);
     vision.get_by_sig(0, 1);  // sorts out red donuts
 pros::vision_object_s_t keepBlue =
     vision.get_by_sig(0, 2);  // sorts out blue donuts*/
+
+pros::aivision_object_s_t colorSort = vision.get_object(0);
 
 pros::Controller ctrl(CONTROLLER_MASTER);  // controller here
 
@@ -183,14 +184,14 @@ void intake() {
   chain.move(127);
   while (true) {
     if (sortedColor == 0) {
-      if (vision.get_color(1) == 1) { //keep red, fling blue
+      if (vision.get_object_count() > 0) { //keep red, fling blue
         donut_detected();
         break;
       } else {
         donut_not_detected();
       }
     } else {
-      if (vision.get_color(0) == 1) { //keep blue, fling red
+      if (vision.get_object_count() > 0) { //keep blue, fling red
         donut_detected();
         break;
       } else {
@@ -232,15 +233,22 @@ void initialize() {
     ladyBrownSet();  // rotates the lady brown thing to the state
   });
   pros::Task([] {
+    if(sortedColor == 0) {
+      colorSort = vision.get_object(0);
+    }
+
+    else if(sortedColor == 1) {
+      colorSort = vision.get_object(1);
+    }
     if (sortedColor == 0) {
-      if (vision.get_color(1) == 1) { //fling red, keep blue
+      if (vision.get_object_count() > 0) { //fling red, keep blue
         donut_detected();
       } else {
         donut_not_detected();
       }
     }
     if (sortedColor == 1) {
-      if (vision.get_color(0) == 1) { //fling blue, keep red
+      if (vision.get_object_count() > 0) { //fling blue, keep red
         donut_detected();
       } else {
         donut_not_detected();
@@ -279,7 +287,7 @@ void disabled() { /*pros::lcd::print(5, "Disabled");*/ }
 void competition_initialize() { /*pros::lcd::print(5, "Competition Initialize");*/ }
 
 void autonomous() {
-  pros::lcd::print(5, "Autonomous");  // COLOR IS ACCOUNTED IN intake()
+  //pros::lcd::print(5, "Autonomous");  // COLOR IS ACCOUNTED IN intake()
   if (autonElim) {                    // Elimination auton here
     if (autonSide) {                  // close side
       drive(32, false, 400);
