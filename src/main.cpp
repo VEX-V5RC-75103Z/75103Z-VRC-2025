@@ -268,6 +268,7 @@ void intake() {
 
 
 void initialize() {
+  pros::screen::print(TEXT_MEDIUM, 3, "Init");
   /*pros::lcd::initialize();*/  
   pros::Task([] {
       setupUI();
@@ -360,11 +361,12 @@ double dynamicCurve(double velocity) {
   return (velocity < 0) ? -curve : curve;
 }
 
-void disabled() { /*pros::lcd::print(5, "Disabled");*/ }
+void disabled() { /*pros::lcd::print(5, "Disabled");*/ pros::screen::print(TEXT_MEDIUM, 3, "Disabled");}
 
-void competition_initialize() { /*pros::lcd::print(5, "Competition Initialize");*/ }
+void competition_initialize() { /*pros::lcd::print(5, "Competition Initialize");*/ pros::screen::print(TEXT_MEDIUM, 3, "Comp Init");}
 
 void autonomous() {
+  pros::screen::print(TEXT_MEDIUM, 3, "Auton");
   //pros::lcd::print(5, "Autonomous");  // COLOR IS ACCOUNTED IN intake()
   if (autonElim) {                    // Elimination auton here
     if (autonSide) {                  // close side
@@ -414,6 +416,7 @@ void autonomous() {
 }
 
 void opcontrol() {
+  pros::screen::print(TEXT_MEDIUM, 3, "OpControl");
   /*pros::lcd::print(5, "OpControl");
   while (true) {
     // temp flags
