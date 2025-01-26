@@ -1,4 +1,4 @@
-Hello!
+**Hello!**
 
 This is the code for VEX V5RC team 75103Z Zip Ties for the 2024-2025 game High Stakes. This includes autonomous, driver control, and Robot Skills Challenge code. Using Git and Github allows our programming mentors[^1] to collaborate efficiently on code. 
 
@@ -8,7 +8,8 @@ If you would like to give us any feedback, please report it as an issue in Githu
 
 Have fun looking through our code!
 
-__Recent Changes__
+<ins>Recent Changes</ins>
+
 We created this new repo after our switch to PROS kernel 4.2.0-pre, a beta release that supports the use of the AI Vision Sensor. Since this doesn't support LVGL and, by extension, LLEMU, we redid our UI from scratch so that we can keep the same functionality that LLEMU provided. Basically everything else is the exact same.
 
 [^1]: Our programmers are @TurtleGod7, @dareckolo, @sceevee_6, and @techsupport101
