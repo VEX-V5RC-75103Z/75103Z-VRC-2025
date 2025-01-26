@@ -12,6 +12,9 @@
 #include "pros/rtos.hpp"
 #include "pros/ai_vision.h"
 #include "pros/ai_vision.hpp"
+#include "pros/colors.hpp"
+#include "pros/screen.h"
+#include "pros/screen.hpp"
 #define pi 3.141592653589793
 
 #define as(a, b, c, d) for (auto a = b; a < c; a += d)
@@ -41,6 +44,8 @@ pros::AIVision vision(4);
 pros::adi::Pneumatics mogoLeft('a', false);
 pros::adi::Pneumatics mogoRight('b', false);
 
+pros::screen_touch_status_s_t touchStatus;
+
 /*pros::vision_object_s_t keepRed =
     vision.get_by_sig(0, 1);  // sorts out red donuts
 pros::vision_object_s_t keepBlue =
@@ -52,6 +57,66 @@ pros::Controller ctrl(CONTROLLER_MASTER);  // controller here
 
 auto vector_sum(auto vector){
   return std::reduce(vector.begin(), vector.end());
+}
+
+void setupUI() {
+  /*screen layout
+    1: hi (can be changed later)
+    2: temp flags
+    3: comp mode flags
+
+    then buttons (hopefully)
+  */
+  pros::screen::set_pen(pros::Color::white);
+  pros::screen::print(TEXT_MEDIUM, 1, "hi");
+
+  int leftTemp = std::round((left.get_temperature(0) + left.get_temperature(1) + left.get_temperature(2)) / 3.0);
+  int rightTemp = std::round((right.get_temperature(0) + right.get_temperature(1) + right.get_temperature(2)) / 3.0);
+  int rollerTemp = std::round(roller.get_temperature());
+  int chainTemp = std::round(chain.get_temperature());
+  int lbTemp = std::round(lb.get_temperature());
+  pros::screen::print(TEXT_MEDIUM, 2, "L: %d R: %d I1: %d I2: %d LB: %d", leftTemp, rightTemp, rollerTemp, chainTemp, lbTemp);
+
+  pros::screen::draw_rect(10, 190, 160, 230); //color button
+  if(sortedColor == 0) {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 85, 210, "Color: Blue");
+    pros::screen::set_pen(0x00FF4747);
+    pros::screen::fill_rect(11, 191, 159, 229);
+  }
+  else if (sortedColor == 1) {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 85, 210, "Color: Red");
+    pros::screen::set_pen(0x00478BFF);
+    pros::screen::fill_rect(11, 191, 159, 229);
+  }
+  else {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 85, 210, "Color: none?");
+    pros::screen::set_pen(0x00919191);
+    pros::screen::fill_rect(11, 191, 159, 229);
+  }
+
+  pros::screen::draw_rect(165, 190, 315, 230);  //elim/qual button
+  if(autonElim) {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 240, 210, "Auton Mode: Elims");
+    pros::screen::set_pen(0x0047FF47);
+    pros::screen::fill_rect(166, 191, 314, 229);
+  }
+  else {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 240, 210, "Auton Mode: Quals");
+    pros::screen::set_pen(0x00FF4747);
+    pros::screen::fill_rect(166, 191, 314, 229);
+  }
+
+  pros::screen::draw_rect(320, 190, 470, 230); //close/far button
+  if(autonSide) {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 395, 210, "Auton Side: Close");
+    pros::screen::set_pen(0x0047FF47);
+    pros::screen::fill_rect(321, 191, 469, 229);
+  }
+  else {
+    pros::screen::print(TEXT_MEDIUM_CENTER, 395, 210, "Auton Side: Far");
+    pros::screen::set_pen(0x00FF4747);
+    pros::screen::fill_rect(321, 191, 469, 229);
+  }
 }
 
 void donut_detected() {
@@ -203,9 +268,22 @@ void intake() {
 
 
 void initialize() {
-  /*pros::lcd::initialize();  
+  /*pros::lcd::initialize();*/  
   pros::Task([] {
-    if (sortedColor == 0) {  // auton color info
+      setupUI();
+      //touch inputs (pls work)
+      if((touchStatus.x > 10 && touchStatus.x < 160) && (touchStatus.y > 190 && touchStatus.y < 230)) {
+        if(sortedColor < 2 && sortedColor > 0) {
+          sortedColor++;
+        }
+        else {
+          sortedColor = 0;
+        }
+      }
+      if((touchStatus.x > 165 && touchStatus.x < 315) && (touchStatus.y > 190 && touchStatus.y < 230)) {autonElim = !autonElim;}
+      if((touchStatus.x > 320 && touchStatus.x < 470) && (touchStatus.y > 190 && touchStatus.y < 230)) {autonSide = !autonSide;}
+
+    /*if (sortedColor == 0) {  // auton color info
       pros::lcd::print(1, "LB: Sorting for BLUE");
       ctrl.print(1, 0, "LB: Sorting for BLUE");
     } else if (sortedColor == 1) {
@@ -226,9 +304,9 @@ void initialize() {
       pros::lcd::print(3, "RB: CLOSE side auton");
     } else {
       pros::lcd::print(3, "RB: FAR side auton");
-    }
+    }*/
     // insert temperature flags when all the motors are defined
-  });*/
+  });
   pros::Task([] {
     ladyBrownSet();  // rotates the lady brown thing to the state
   });
