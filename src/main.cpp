@@ -52,12 +52,18 @@ pros::screen_touch_status_s_t touchStatus;
 pros::vision_object_s_t keepBlue =
     vision.get_by_sig(0, 2);  // sorts out blue donuts*/
 
-pros::aivision_object_s_t colorSort = vision.get_object(0);
+// pros::aivision_object_s_t colorSort = vision.get_object(0);
 
 pros::Controller ctrl(CONTROLLER_MASTER);  // controller here
 
+// Utility function that returns a sum of all elements in a vector
 auto vector_sum(auto vector) {
   return std::reduce(vector.begin(), vector.end());
+}
+
+// Utility function that returns the absolute difference between two numbers
+auto absolute_difference(auto a, auto b) {
+  return std::abs(a - b);
 }
 
 void setupUI() {
@@ -253,6 +259,29 @@ void mogoExtend() {
   mogoRight.extend();
 }
 
+void colorSortcycle() {
+  sortedColor++;
+  sortedColor = sortedColor % 3;
+}
+void colorSort() {
+  int tolerance = 10;  // how much it can be off by
+  if (vision.get_object_count() > 0) {
+    pros::aivision_object_s_t detectedObject = vision.get_object(0);  // gets the first object
+    pros::aivision_color_s_t detectedColor = vision.get_color(detectedObject.id);  // gets the color of the first object
+    if (sortedColor < 2) { 
+      pros::aivision_color_s_t targetColor = vision.get_color(sortedColor++);  // gets the target object
+      if (absolute_difference(detectedColor.red, targetColor.red) < tolerance &&
+          absolute_difference(detectedColor.green, targetColor.green) < tolerance &&
+          absolute_difference(detectedColor.blue, targetColor.blue) < tolerance) {
+        donut_detected();
+      } else {
+        donut_not_detected();
+      } 
+    } else {
+      donut_not_detected();
+    }
+  }
+}
 void intake() {
   roller.move(127);
   chain.move(127);
@@ -278,16 +307,36 @@ void intake() {
 void initialize() {
   pros::screen::print(TEXT_MEDIUM, 3, "Init");
   /*pros::lcd::initialize();*/
+  vision.enable_detection_types(pros::AivisionModeType::colors);  // enables color detection
+  vision.enable_detection_types(pros::AivisionModeType::objects);  // enables object detection
+  
+  pros::aivision_color_s_t keepBlue = {
+    .id = 1,
+    .red = 57,
+    .green = 115,
+    .blue = 151,
+    .hue_range = 8,
+    .saturation_range = 0.66
+  };
+
+  pros::aivision_color_s_t keepRed = {
+    .id = 2,
+    .red = 162,
+    .green = 29,
+    .blue = 57,
+    .hue_range = 29,
+    .saturation_range = 0.49
+  };
+
+  vision.set_color(keepBlue);
+  vision.set_color(keepRed);
+  
   pros::Task([] {
     setupUI();
     // touch inputs (pls work)
     if ((touchStatus.x > 10 && touchStatus.x < 160) &&
         (touchStatus.y > 190 && touchStatus.y < 230)) {
-      if (sortedColor < 2 && sortedColor > 0) {
-        sortedColor++;
-      } else {
-        sortedColor = 0;
-      }
+      colorSortcycle();
     }
     if ((touchStatus.x > 165 && touchStatus.x < 315) &&
         (touchStatus.y > 190 && touchStatus.y < 230)) {
@@ -321,36 +370,17 @@ void initialize() {
       pros::lcd::print(3, "RB: FAR side auton");
     }*/
     // insert temperature flags when all the motors are defined
+    pros::delay(10);
   });
   pros::Task([] {
     ladyBrownSet();  // rotates the lady brown thing to the state
+    pros::delay(10);
   });
-  pros::Task([] {
-    if (sortedColor == 0) {
-      colorSort = vision.get_object(0);
-    }
+  pros::Task([] {// color sort
+    colorSort();
+    pros::delay(10);
+  });
 
-    else if (sortedColor == 1) {
-      colorSort = vision.get_object(1);
-    }
-    if (sortedColor == 0) {
-      if (vision.get_object_count() > 0) {  // fling red, keep blue
-        donut_detected();
-      } else {
-        donut_not_detected();
-      }
-    }
-    if (sortedColor == 1) {
-      if (vision.get_object_count() > 0) {  // fling blue, keep red
-        donut_detected();
-      } else {
-        donut_not_detected();
-      }
-    }
-    if (sortedColor == 2) {
-      donut_not_detected();
-    }
-  });
   /*It's good to have an lcd layout to give flags etc to the driver; you can do
   this through pros::lcd::print() which is to the brain or ctrl.print() which is
   to the controller, it's up to you to decide where! (example from mentor code):
@@ -363,9 +393,11 @@ void initialize() {
   5: comp ctrl mode flag - what mode it is in right now
   */
   // pros::lcd::register_btn1_cb(on_center_button);
+
+  
 }
 
-double dynamicCurve(double velocity) {
+double dynamicCurve(double velocity) {// has been depricated, does NOT work
   const double minCurve = 0.4;
   const double maxCurve = 1.0;
   const double speedThresh = 300.0;
@@ -491,6 +523,9 @@ void opcontrol() {
       mogoExtend();
     } else {
       mogoRetract();
+    }
+    if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
+      colorSortcycle();  
     }
     pros::delay(20);  // Run for 20 ms then update}
   }
