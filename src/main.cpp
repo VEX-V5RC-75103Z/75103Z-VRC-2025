@@ -3,16 +3,16 @@
 #include <cmath>
 #include <numeric>
 
-//#include "lemlib/api.hpp"  // IWYU pragma: keep
-//#include "liblvgl/llemu.hpp"
+// #include "lemlib/api.hpp"  // IWYU pragma: keep
+// #include "liblvgl/llemu.hpp"
 #include "pros/abstract_motor.hpp"
 #include "pros/imu.hpp"
-//#include "pros/llemu.hpp"
-#include "pros/motors.hpp"
-#include "pros/rtos.hpp"
+// #include "pros/llemu.hpp"
 #include "pros/ai_vision.h"
 #include "pros/ai_vision.hpp"
 #include "pros/colors.hpp"
+#include "pros/motors.hpp"
+#include "pros/rtos.hpp"
 #include "pros/screen.h"
 #include "pros/screen.hpp"
 #define pi 3.141592653589793
@@ -26,19 +26,20 @@ bool autonSide;                         // T = close, F = far
 const int wheelCirc = 220;              // in mm
 const int driveEncoders = 300;          // ticks per revolution
 const double trackWidth = 10.8 * 25.4;  // conversion to mm
-int lbStates[3] = {0, 338, 217}; // list of all the states
+int lbStates[3] = {0, 338, 217};        // list of all the states
 int lbState = 0;                        // current state it is in
-const int lbTotalStates = sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
+const int lbTotalStates =
+    sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
 
-pros::MotorGroup left({11, 12, 13}, pros::MotorGearset::blue);
+pros::MotorGroup left({-11, -12, -13}, pros::MotorGearset::blue);
 pros::MotorGroup right({18, 19, 20}, pros::MotorGearset::blue);
 pros::Motor roller(1, pros::MotorGearset::green);
-pros::Motor chain(-8, pros::MotorGearset::blue);
-pros::Motor lb(10, pros::MotorGearset::blue);
+pros::Motor chain(-7, pros::MotorGearset::blue);
+pros::Motor lb(2, pros::MotorGearset::blue);
 
 pros::Rotation lbRotation(10);
-pros::Imu inertial(11);
-//pros::Vision vision(4);
+pros::Imu inertial(14);
+// pros::Vision vision(4);
 pros::AIVision vision(4);
 
 pros::adi::Pneumatics mogoLeft('a', false);
@@ -51,12 +52,18 @@ pros::screen_touch_status_s_t touchStatus;
 pros::vision_object_s_t keepBlue =
     vision.get_by_sig(0, 2);  // sorts out blue donuts*/
 
-pros::aivision_object_s_t colorSort = vision.get_object(0);
+// pros::aivision_object_s_t colorSort = vision.get_object(0);
 
 pros::Controller ctrl(CONTROLLER_MASTER);  // controller here
 
-auto vector_sum(auto vector){
+// Utility function that returns a sum of all elements in a vector
+auto vector_sum(auto vector) {
   return std::reduce(vector.begin(), vector.end());
+}
+
+// Utility function that returns the absolute difference between two numbers
+auto absolute_difference(auto a, auto b) {
+  return std::abs(a - b);
 }
 
 void setupUI() {
@@ -70,49 +77,46 @@ void setupUI() {
   pros::screen::set_pen(pros::Color::white);
   pros::screen::print(TEXT_MEDIUM, 1, "hi");
 
-  int leftTemp = std::round((left.get_temperature(0) + left.get_temperature(1) + left.get_temperature(2)) / 3.0);
-  int rightTemp = std::round((right.get_temperature(0) + right.get_temperature(1) + right.get_temperature(2)) / 3.0);
+  int leftTemp = std::round(vector_sum(left.get_temperature_all()) / 3.0);
+  int rightTemp = std::round(vector_sum(right.get_temperature_all()) / 3.0);
   int rollerTemp = std::round(roller.get_temperature());
   int chainTemp = std::round(chain.get_temperature());
   int lbTemp = std::round(lb.get_temperature());
-  pros::screen::print(TEXT_MEDIUM, 2, "L: %d R: %d I1: %d I2: %d LB: %d", leftTemp, rightTemp, rollerTemp, chainTemp, lbTemp);
+  pros::screen::print(TEXT_MEDIUM, 2, "L: %d R: %d I1: %d I2: %d LB: %d",
+                      leftTemp, rightTemp, rollerTemp, chainTemp, lbTemp);
 
-  pros::screen::draw_rect(10, 190, 160, 230); //color button
-  if(sortedColor == 0) {
+  pros::screen::draw_rect(10, 190, 160, 230);  // color button
+  if (sortedColor == 0) {
     pros::screen::print(TEXT_MEDIUM_CENTER, 85, 210, "Color: Blue");
     pros::screen::set_pen(0x00FF4747);
     pros::screen::fill_rect(11, 191, 159, 229);
-  }
-  else if (sortedColor == 1) {
+  } else if (sortedColor == 1) {
     pros::screen::print(TEXT_MEDIUM_CENTER, 85, 210, "Color: Red");
     pros::screen::set_pen(0x00478BFF);
     pros::screen::fill_rect(11, 191, 159, 229);
-  }
-  else {
+  } else {
     pros::screen::print(TEXT_MEDIUM_CENTER, 85, 210, "Color: none?");
     pros::screen::set_pen(0x00919191);
     pros::screen::fill_rect(11, 191, 159, 229);
   }
 
-  pros::screen::draw_rect(165, 190, 315, 230);  //elim/qual button
-  if(autonElim) {
+  pros::screen::draw_rect(165, 190, 315, 230);  // elim/qual button
+  if (autonElim) {
     pros::screen::print(TEXT_MEDIUM_CENTER, 240, 210, "Auton Mode: Elims");
     pros::screen::set_pen(0x0047FF47);
     pros::screen::fill_rect(166, 191, 314, 229);
-  }
-  else {
+  } else {
     pros::screen::print(TEXT_MEDIUM_CENTER, 240, 210, "Auton Mode: Quals");
     pros::screen::set_pen(0x00FF4747);
     pros::screen::fill_rect(166, 191, 314, 229);
   }
 
-  pros::screen::draw_rect(320, 190, 470, 230); //close/far button
-  if(autonSide) {
+  pros::screen::draw_rect(320, 190, 470, 230);  // close/far button
+  if (autonSide) {
     pros::screen::print(TEXT_MEDIUM_CENTER, 395, 210, "Auton Side: Close");
     pros::screen::set_pen(0x0047FF47);
     pros::screen::fill_rect(321, 191, 469, 229);
-  }
-  else {
+  } else {
     pros::screen::print(TEXT_MEDIUM_CENTER, 395, 210, "Auton Side: Far");
     pros::screen::set_pen(0x00FF4747);
     pros::screen::fill_rect(321, 191, 469, 229);
@@ -181,8 +185,14 @@ void ladyBrownCycle(bool forward) {
 void ladyBrownSet() {
   double kp = 1.5;
   double error = (lbStates[lbState] - lbRotation.get_position());
+  if (error > 180) {
+    error -= 360;
+  }
+  if (error < -180) {
+    error += 360;
+  }
   double movePower = kp * error;
-  lb.move(-movePower);
+  lb.move(movePower);
 }
 
 void toHeading(double degrees, int rpm) {
@@ -244,19 +254,41 @@ void mogoExtend() {
   mogoRight.extend();
 }
 
+void colorSortcycle() {
+  sortedColor++;
+  sortedColor = sortedColor % 3;
+}
+void colorSort() {
+  int tolerance = 10;  // how much it can be off by
+  if (vision.get_object_count() > 0) {  // gets the first object
+    pros::aivision_color_s_t detectedColor = vision.get_color(vision.get_object(0).id);  // gets the color of the first object
+    if (sortedColor < 2) { 
+      pros::aivision_color_s_t targetColor = vision.get_color(sortedColor++);  // gets the target object
+      if (absolute_difference(detectedColor.red, targetColor.red) < tolerance &&
+          absolute_difference(detectedColor.green, targetColor.green) < tolerance &&
+          absolute_difference(detectedColor.blue, targetColor.blue) < tolerance) {
+        donut_detected();
+      } else {
+        donut_not_detected();
+      } 
+    } else {
+      donut_not_detected();// only run if colorSort = 2
+    }
+  }
+}
 void intake() {
   roller.move(127);
   chain.move(127);
   while (true) {
     if (sortedColor == 0) {
-      if (vision.get_object_count() > 0) { //keep red, fling blue
+      if (vision.get_object_count() > 0) {  // keep red, fling blue
         donut_detected();
         break;
       } else {
         donut_not_detected();
       }
     } else {
-      if (vision.get_object_count() > 0) { //keep blue, fling red
+      if (vision.get_object_count() > 0) {  // keep blue, fling red
         donut_detected();
         break;
       } else {
@@ -266,23 +298,48 @@ void intake() {
   }
 }
 
-
 void initialize() {
   pros::screen::print(TEXT_MEDIUM, 3, "Init");
-  /*pros::lcd::initialize();*/  
+  /*pros::lcd::initialize();*/
+  vision.enable_detection_types(pros::AivisionModeType::colors);  // enables color detection
+  vision.enable_detection_types(pros::AivisionModeType::objects);  // enables object detection
+  
+  pros::aivision_color_s_t keepBlue = {
+    .id = 1,
+    .red = 57,
+    .green = 115,
+    .blue = 151,
+    .hue_range = 8,
+    .saturation_range = 0.66
+  };
+
+  pros::aivision_color_s_t keepRed = {
+    .id = 2,
+    .red = 162,
+    .green = 29,
+    .blue = 57,
+    .hue_range = 29,
+    .saturation_range = 0.49
+  };
+
+  vision.set_color(keepBlue);
+  vision.set_color(keepRed);
+  
   pros::Task([] {
-      setupUI();
-      //touch inputs (pls work)
-      if((touchStatus.x > 10 && touchStatus.x < 160) && (touchStatus.y > 190 && touchStatus.y < 230)) {
-        if(sortedColor < 2 && sortedColor > 0) {
-          sortedColor++;
-        }
-        else {
-          sortedColor = 0;
-        }
-      }
-      if((touchStatus.x > 165 && touchStatus.x < 315) && (touchStatus.y > 190 && touchStatus.y < 230)) {autonElim = !autonElim;}
-      if((touchStatus.x > 320 && touchStatus.x < 470) && (touchStatus.y > 190 && touchStatus.y < 230)) {autonSide = !autonSide;}
+    setupUI();
+    // touch inputs (pls work)
+    if ((touchStatus.x > 10 && touchStatus.x < 160) &&
+        (touchStatus.y > 190 && touchStatus.y < 230)) {
+      colorSortcycle();
+    }
+    if ((touchStatus.x > 165 && touchStatus.x < 315) &&
+        (touchStatus.y > 190 && touchStatus.y < 230)) {
+      autonElim = !autonElim;
+    }
+    if ((touchStatus.x > 320 && touchStatus.x < 470) &&
+        (touchStatus.y > 190 && touchStatus.y < 230)) {
+      autonSide = !autonSide;
+    }
 
     /*if (sortedColor == 0) {  // auton color info
       pros::lcd::print(1, "LB: Sorting for BLUE");
@@ -307,36 +364,17 @@ void initialize() {
       pros::lcd::print(3, "RB: FAR side auton");
     }*/
     // insert temperature flags when all the motors are defined
+    pros::delay(10);
   });
   pros::Task([] {
     ladyBrownSet();  // rotates the lady brown thing to the state
+    pros::delay(10);
   });
-  pros::Task([] {
-    if(sortedColor == 0) {
-      colorSort = vision.get_object(0);
-    }
+  pros::Task([] {// color sort
+    colorSort();
+    pros::delay(10);
+  });
 
-    else if(sortedColor == 1) {
-      colorSort = vision.get_object(1);
-    }
-    if (sortedColor == 0) {
-      if (vision.get_object_count() > 0) { //fling red, keep blue
-        donut_detected();
-      } else {
-        donut_not_detected();
-      }
-    }
-    if (sortedColor == 1) {
-      if (vision.get_object_count() > 0) { //fling blue, keep red
-        donut_detected();
-      } else {
-        donut_not_detected();
-      }
-    }
-    if (sortedColor == 2) {
-      donut_not_detected();
-    }
-  });
   /*It's good to have an lcd layout to give flags etc to the driver; you can do
   this through pros::lcd::print() which is to the brain or ctrl.print() which is
   to the controller, it's up to you to decide where! (example from mentor code):
@@ -348,10 +386,12 @@ void initialize() {
   4: temp flags - overheat or not
   5: comp ctrl mode flag - what mode it is in right now
   */
-  //pros::lcd::register_btn1_cb(on_center_button);
+  // pros::lcd::register_btn1_cb(on_center_button);
+
+  
 }
 
-double dynamicCurve(double velocity) {
+double dynamicCurve(double velocity) {// has been depricated, does NOT work
   const double minCurve = 0.4;
   const double maxCurve = 1.0;
   const double speedThresh = 300.0;
@@ -361,21 +401,26 @@ double dynamicCurve(double velocity) {
   return (velocity < 0) ? -curve : curve;
 }
 
-void disabled() { /*pros::lcd::print(5, "Disabled");*/ pros::screen::print(TEXT_MEDIUM, 3, "Disabled");}
+void disabled() { /*pros::lcd::print(5, "Disabled");*/
+  pros::screen::print(TEXT_MEDIUM, 3, "Disabled");
+}
 
-void competition_initialize() { /*pros::lcd::print(5, "Competition Initialize");*/ pros::screen::print(TEXT_MEDIUM, 3, "Comp Init");}
+void competition_initialize() { /*pros::lcd::print(5, "Competition
+                                   Initialize");*/
+  pros::screen::print(TEXT_MEDIUM, 3, "Comp Init");
+}
 
 void autonomous() {
   pros::screen::print(TEXT_MEDIUM, 3, "Auton");
-  //pros::lcd::print(5, "Autonomous");  // COLOR IS ACCOUNTED IN intake()
-  if (autonElim) {                    // Elimination auton here
-    if (autonSide) {                  // close side
+  // pros::lcd::print(5, "Autonomous");  // COLOR IS ACCOUNTED IN intake()
+  if (autonElim) {    // Elimination auton here
+    if (autonSide) {  // close side
       drive(32, false, 400);
       inertialTurn(21.80140949, 300);
       mogoExtend();
-      //intakeon;
+      // intakeon;
       drive(12, true, 400);
-      //intakeoff;
+      // intakeoff;
       inertialTurn(-90, 300);
       mogoRetract();
       drive(6, true, 400);
@@ -383,10 +428,10 @@ void autonomous() {
       drive(6, false, 400);
       mogoExtend();
       inertialTurn(-45, 300);
-      //intakeon;
+      // intakeon;
       ladyBrownCycle(false);
       drive(26, true, 600);
-      //intakeoff;
+      // intakeoff;
     } else {  // far side
       // Elimination, far side
     }
@@ -396,9 +441,9 @@ void autonomous() {
       drive(32, false, 400);
       inertialTurn(21.80140949, 300);
       mogoExtend();
-      //intakeon;
+      // intakeon;
       drive(12, true, 400);
-      //intakeoff;
+      // intakeoff;
       inertialTurn(-90, 300);
       mogoRetract();
       drive(6, true, 400);
@@ -416,29 +461,30 @@ void autonomous() {
 }
 
 void opcontrol() {
-  pros::screen::print(TEXT_MEDIUM, 3, "OpControl");
-  /*pros::lcd::print(5, "OpControl");
   while (true) {
-    // temp flags
-    float dtLeftOT =
-        ((round(10.0 * ((vector_sum(left.get_temperature_all()) / 3.0))) / 10.0));
-    float dtRightOT =
-        ((round(10.0 * ((vector_sum(right.get_temperature_all()) / 3.0))) / 10.0));
-    float chainOT = chain.get_temperature();
-    float lbOT = lb.get_temperature();
-    float rollerOT = roller.get_temperature();
-    // printing the overtemp flags on to lcd
-    pros::lcd::print(4, "DTL%.1f DTR%.1f Chain%.1f LB%.1f Roller%.1f", dtLeftOT,
-                     dtRightOT, chainOT, lbOT, rollerOT);
-    ctrl.print(0, 0, "DTL%.1f DTR%.1f Chain%.1f LB%.1f Roller%.1f", dtLeftOT,
-               dtRightOT, chainOT, lbOT, rollerOT);*/
+    pros::screen::print(TEXT_MEDIUM, 3, "OpControl");
+    /*pros::lcd::print(5, "OpControl");
+      // temp flags
+      float dtLeftOT =
+          ((round(10.0 * ((vector_sum(left.get_temperature_all()) / 3.0)))
+    / 10.0)); float dtRightOT =
+          ((round(10.0 * ((vector_sum(right.get_temperature_all()) / 3.0)))
+    / 10.0)); float chainOT = chain.get_temperature(); float lbOT =
+    lb.get_temperature(); float rollerOT = roller.get_temperature();
+      // printing the overtemp flags on to lcd
+      pros::lcd::print(4, "DTL%.1f DTR%.1f Chain%.1f LB%.1f Roller%.1f",
+    dtLeftOT, dtRightOT, chainOT, lbOT, rollerOT); ctrl.print(0, 0, "DTL%.1f
+    DTR%.1f Chain%.1f LB%.1f Roller%.1f", dtLeftOT, dtRightOT, chainOT, lbOT,
+    rollerOT);*/
     // Arcade control scheme
     int power = ctrl.get_analog(ANALOG_LEFT_Y);
     int turn = ctrl.get_analog(ANALOG_RIGHT_X);
-    double velocity = (vector_sum(left.get_actual_velocity_all()) + vector_sum(right.get_actual_velocity_all()) / 2.0);
+    double velocity = ((vector_sum(left.get_actual_velocity_all()) +
+                        vector_sum(right.get_actual_velocity_all())) /
+                       6.0);
     double curve = dynamicCurve(velocity);
-    double powerL = power + turn * curve;
-    double powerR = power - turn * curve;
+    double powerL = power + turn;
+    double powerR = power - turn;
 
     if (ctrl.get_digital(DIGITAL_Y)) {  // modifier
       turn = turn / 2;
@@ -447,7 +493,8 @@ void opcontrol() {
     // dt
     left.move(powerL);
     right.move(powerR);
-
+    roller.brake();
+    chain.brake();
     if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
       roller.move(127);
     }
@@ -460,7 +507,6 @@ void opcontrol() {
     if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
       chain.move(-128);
     }
-
     if (ctrl.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)) {
       ladyBrownCycle(true);
     }
@@ -472,5 +518,9 @@ void opcontrol() {
     } else {
       mogoRetract();
     }
-    pros::delay(20);  // Run for 20 ms then update
+    if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
+      colorSortcycle();  
+    }
+    pros::delay(20);  // Run for 20 ms then update}
+  }
 }
