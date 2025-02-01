@@ -77,13 +77,8 @@ void setupUI() {
   pros::screen::set_pen(pros::Color::white);
   pros::screen::print(TEXT_MEDIUM, 1, "hi");
 
-  int leftTemp = std::round((left.get_temperature(0) + left.get_temperature(1) +
-                             left.get_temperature(2)) /
-                            3.0);
-  int rightTemp =
-      std::round((right.get_temperature(0) + right.get_temperature(1) +
-                  right.get_temperature(2)) /
-                 3.0);
+  int leftTemp = std::round(vector_sum(left.get_temperature_all()) / 3.0);
+  int rightTemp = std::round(vector_sum(right.get_temperature_all()) / 3.0);
   int rollerTemp = std::round(roller.get_temperature());
   int chainTemp = std::round(chain.get_temperature());
   int lbTemp = std::round(lb.get_temperature());
@@ -265,9 +260,8 @@ void colorSortcycle() {
 }
 void colorSort() {
   int tolerance = 10;  // how much it can be off by
-  if (vision.get_object_count() > 0) {
-    pros::aivision_object_s_t detectedObject = vision.get_object(0);  // gets the first object
-    pros::aivision_color_s_t detectedColor = vision.get_color(detectedObject.id);  // gets the color of the first object
+  if (vision.get_object_count() > 0) {  // gets the first object
+    pros::aivision_color_s_t detectedColor = vision.get_color(vision.get_object(0).id);  // gets the color of the first object
     if (sortedColor < 2) { 
       pros::aivision_color_s_t targetColor = vision.get_color(sortedColor++);  // gets the target object
       if (absolute_difference(detectedColor.red, targetColor.red) < tolerance &&
@@ -278,7 +272,7 @@ void colorSort() {
         donut_not_detected();
       } 
     } else {
-      donut_not_detected();
+      donut_not_detected();// only run if colorSort = 2
     }
   }
 }
