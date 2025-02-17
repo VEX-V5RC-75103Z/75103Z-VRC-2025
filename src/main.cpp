@@ -1,5 +1,6 @@
 #include "main.h"
 
+#include <cerrno>
 #include <cmath>
 #include <numeric>
 
@@ -7,10 +8,13 @@
 // #include "liblvgl/llemu.hpp"
 #include "pros/abstract_motor.hpp"
 #include "pros/imu.hpp"
+#include "pros/adi.hpp"
 // #include "pros/llemu.hpp"
 #include "pros/ai_vision.h"
 #include "pros/ai_vision.hpp"
 #include "pros/colors.hpp"
+#include "pros/misc.h"
+#include "pros/misc.hpp"
 #include "pros/motors.hpp"
 #include "pros/rtos.hpp"
 #include "pros/screen.h"
@@ -26,10 +30,11 @@ bool autonSide;                         // T = close, F = far
 const int wheelCirc = 220;              // in mm
 const int driveEncoders = 300;          // ticks per revolution
 const double trackWidth = 10.8 * 25.4;  // conversion to mm
-int lbStates[3] = {0, 338, 217};        // list of all the states
+int lbStates[4] = {0, 325, 225, 165};        // list of all the states
 int lbState = 0;                        // current state it is in
-const int lbTotalStates =
-    sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
+const int lbTotalStates = 4;
+    //sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
+const std::string colorPrint[3] = {"LB: BLUE", "LB: RED", "LB; None"};
 
 pros::MotorGroup left({-11, -12, -13}, pros::MotorGearset::blue);
 pros::MotorGroup right({18, 19, 20}, pros::MotorGearset::blue);
@@ -176,21 +181,20 @@ void turn(double degrees, bool turnLeft, int rpm) {
 }
 void ladyBrownCycle(bool forward) {
   if (forward) {
-    lbState++;
+    lbState+=1;
   } else {
-    lbState--;
+    lbState-=1;
   }
-  lbState = lbState % lbTotalStates;
+  if (lbState == lbTotalStates){
+    lbState = 0;
+  }
+  if (lbState == -1){
+    lbState = (lbTotalStates-1);
+  }
 }
 void ladyBrownSet() {
-  double kp = 1.5;
-  double error = (lbStates[lbState] - lbRotation.get_position());
-  if (error > 180) {
-    error -= 360;
-  }
-  if (error < -180) {
-    error += 360;
-  }
+  double kp = 0.5;
+  double error = (lbStates[lbState] - (lbRotation.get_position()/100.0));
   double movePower = kp * error;
   lb.move(movePower);
 }
@@ -257,6 +261,7 @@ void mogoExtend() {
 void colorSortcycle() {
   sortedColor++;
   sortedColor = sortedColor % 3;
+  ctrl.print(1,0,colorPrint[sortedColor].c_str());
 }
 void colorSort() {
   int tolerance = 10;  // how much it can be off by
@@ -326,53 +331,59 @@ void initialize() {
   vision.set_color(keepRed);
   
   pros::Task([] {
-    setupUI();
-    // touch inputs (pls work)
-    if ((touchStatus.x > 10 && touchStatus.x < 160) &&
-        (touchStatus.y > 190 && touchStatus.y < 230)) {
-      colorSortcycle();
-    }
-    if ((touchStatus.x > 165 && touchStatus.x < 315) &&
-        (touchStatus.y > 190 && touchStatus.y < 230)) {
-      autonElim = !autonElim;
-    }
-    if ((touchStatus.x > 320 && touchStatus.x < 470) &&
-        (touchStatus.y > 190 && touchStatus.y < 230)) {
-      autonSide = !autonSide;
-    }
+    while (true) {  
+      setupUI();
+      // touch inputs (pls work)
+      if ((touchStatus.x > 10 && touchStatus.x < 160) &&
+          (touchStatus.y > 190 && touchStatus.y < 230)) {
+        colorSortcycle();
+      }
+      if ((touchStatus.x > 165 && touchStatus.x < 315) &&
+          (touchStatus.y > 190 && touchStatus.y < 230)) {
+        autonElim = !autonElim;
+      }
+      if ((touchStatus.x > 320 && touchStatus.x < 470) &&
+          (touchStatus.y > 190 && touchStatus.y < 230)) {
+        autonSide = !autonSide;
+      }
 
-    /*if (sortedColor == 0) {  // auton color info
-      pros::lcd::print(1, "LB: Sorting for BLUE");
-      ctrl.print(1, 0, "LB: Sorting for BLUE");
-    } else if (sortedColor == 1) {
-      pros::lcd::print(1, "LB: Sorting for RED");
-      ctrl.print(1, 0, "LB: Sorting for RED");
-    } else {
-      pros::lcd::print(1, "LB: Sorting for N/A");
-      ctrl.print(1, 0, "LB: Sorting for N/A");
-    }
+      /*if (sortedColor == 0) {  // auton color info
+        pros::lcd::print(1, "LB: Sorting for BLUE");
+        ctrl.print(1, 0, "LB: Sorting for BLUE");
+      } else if (sortedColor == 1) {
+        pros::lcd::print(1, "LB: Sorting for RED");
+        ctrl.print(1, 0, "LB: Sorting for RED");
+      } else {
+        pros::lcd::print(1, "LB: Sorting for N/A");
+        ctrl.print(1, 0, "LB: Sorting for N/A");
+      }
 
-    if (autonElim) {
-      pros::lcd::print(2, "CB: ELIM auton");
-    } else {
-      pros::lcd::print(2, "CB: QUAL auton");
-    }
+      if (autonElim) {
+        pros::lcd::print(2, "CB: ELIM auton");
+      } else {
+        pros::lcd::print(2, "CB: QUAL auton");
+      }
 
-    if (autonSide) {
-      pros::lcd::print(3, "RB: CLOSE side auton");
-    } else {
-      pros::lcd::print(3, "RB: FAR side auton");
-    }*/
-    // insert temperature flags when all the motors are defined
-    pros::delay(10);
+      if (autonSide) {
+        pros::lcd::print(3, "RB: CLOSE side auton");
+      } else {
+        pros::lcd::print(3, "RB: FAR side auton");
+      }*/
+      // insert temperature flags when all the motors are defined
+      pros::delay(10);
+    }
   });
   pros::Task([] {
-    ladyBrownSet();  // rotates the lady brown thing to the state
-    pros::delay(10);
+    while (true){
+      ladyBrownSet();  // rotates the lady brown thing to the state
+      pros::delay(10);
+    }
   });
   pros::Task([] {// color sort
-    colorSort();
-    pros::delay(10);
+    while (true){
+      colorSort();
+      pros::delay(10);
+    }
   });
 
   /*It's good to have an lcd layout to give flags etc to the driver; you can do
@@ -388,6 +399,7 @@ void initialize() {
   */
   // pros::lcd::register_btn1_cb(on_center_button);
 
+  lbRotation.reset_position();
   
 }
 
@@ -495,6 +507,7 @@ void opcontrol() {
     right.move(powerR);
     roller.brake();
     chain.brake();
+    lb.brake();
     if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
       roller.move(127);
     }
@@ -513,12 +526,18 @@ void opcontrol() {
     if (ctrl.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
       ladyBrownCycle(false);
     }
+    if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT)){
+      lb.move(128);
+    }
+    if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)){
+      lb.move(-128);
+    }
     if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_A)) {
       mogoExtend();
     } else {
       mogoRetract();
     }
-    if (ctrl.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
+    if (ctrl.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
       colorSortcycle();  
     }
     pros::delay(20);  // Run for 20 ms then update}
