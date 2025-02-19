@@ -32,8 +32,7 @@ const int driveEncoders = 300;          // ticks per revolution
 const double trackWidth = 10.8 * 25.4;  // conversion to mm
 int lbStates[4] = {0, 325, 225, 165};        // list of all the states
 int lbState = 0;                        // current state it is in
-const int lbTotalStates = 4;
-    //sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
+const int lbTotalStates = sizeof(lbStates) / sizeof(lbStates[0]);  // total number of states
 const std::string colorPrint[3] = {"LB: BLUE", "LB: RED", "LB; None"};
 
 pros::MotorGroup left({-11, -12, -13}, pros::MotorGearset::blue);
@@ -181,20 +180,15 @@ void turn(double degrees, bool turnLeft, int rpm) {
 }
 void ladyBrownCycle(bool forward) {
   if (forward) {
-    lbState+=1;
+    lbState++;
   } else {
-    lbState-=1;
+    lbState--;
   }
-  if (lbState == lbTotalStates){
-    lbState = 0;
-  }
-  if (lbState == -1){
-    lbState = (lbTotalStates-1);
-  }
+  lbState = lbState % lbTotalStates;
 }
 void ladyBrownSet() {
   double kp = 0.5;
-  double error = (lbStates[lbState] - (lbRotation.get_position()/100.0));
+  double error = (lbStates[lbState] - (lbRotation.get_angle()/100.0));
   double movePower = kp * error;
   lb.move(movePower);
 }
